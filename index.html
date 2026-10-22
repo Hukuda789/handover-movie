@@ -70,7 +70,7 @@ header .ver{color:var(--muted);font-size:11px}
 .modal .mf{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between}
 fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 12px;padding:10px 12px}
 legend{color:var(--accent);padding:0 6px;font-size:12px}
-.grid2{display:grid;grid-template-columns:90px 1fr 70px 96px;gap:6px 8px;align-items:start}
+.grid2{display:grid;grid-template-columns:78px 1fr;gap:8px 8px;align-items:start}
 .grid2 .lab{padding-top:6px;color:var(--muted);font-size:12px}
 .fr{display:flex;gap:8px;align-items:center;margin-bottom:6px}
 .fr>label{width:110px;flex:none}
@@ -126,8 +126,6 @@ details.adv>.advbody{padding:0 12px 4px}
   .modal{width:100vw;max-height:100vh;border-radius:0}
   .modal-back{align-items:stretch}
   .grid2{grid-template-columns:62px 1fr}
-  .grid2 .lab{grid-row:span 1}
-  .grid2>input[type=number],.grid2>select{grid-column:2}
   .fr{flex-wrap:wrap}
   .fr>label{width:100%}
   .pvbox{flex-direction:column}
@@ -160,6 +158,16 @@ details.adv>.advbody{padding:0 12px 4px}
 #playBar input[type=range]{flex:1;padding:0}
 #playTime{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;min-width:92px;text-align:right}
 @media (max-width:820px){ #playBar{flex-wrap:wrap} #playBar input[type=range]{flex:1 1 100%;order:3} }
+
+/* 設定: 画面の右側に出るパネル(後ろのメイン画面を見ながら操作できる) */
+#settingsBack{background:transparent;pointer-events:none;justify-content:flex-end;align-items:stretch}
+#settingsBack .modal{pointer-events:auto;width:min(560px,100vw);height:100vh;max-height:100vh;border-radius:0;border:0;border-left:1px solid var(--line);box-shadow:-12px 0 36px rgba(0,0,0,.5);animation:slideIn .18s ease-out}
+@keyframes slideIn{from{transform:translateX(36px);opacity:0}to{transform:none;opacity:1}}
+.rowbody textarea{width:100%}
+.rowopts{display:flex;gap:8px;margin-top:6px}
+.rowopts input{width:104px;flex:none}
+.rowopts select{flex:1;max-width:150px}
+#oriInfo{margin-left:4px}
 </style>
 </head>
 <body>
@@ -201,10 +209,7 @@ details.adv>.advbody{padding:0 12px 4px}
       <button class="primary" id="btnGenerate">▶ 動画を作成</button>
       <button id="btnPlay" title="書き出す前に、動画全体を再生して確認します">👁 全体をプレビュー</button>
       <button id="btnCancel" style="display:none">中止</button>
-      <div class="oriSel" role="radiogroup" aria-label="動画の向き">
-        <label><input type="radio" name="ori" value="landscape"> 横型（パソコン・テレビ向け）</label>
-        <label><input type="radio" name="ori" value="portrait"> 縦型（スマホ・SNS向け）</label>
-      </div>
+      <span class="hint" id="oriInfo"></span>
       <span class="hint" id="encInfo"></span>
     </div>
     <div id="progress"><div></div></div>
@@ -2171,7 +2176,7 @@ window.__FONT_PRESETS__=[{"stem": "ZenMaruGothic-Bold", "label": "Zen Maru Gothi
    すべての処理（描画・音声・MP4の書き出し）はこのページを開いている
    パソコンの中だけで行われ、写真や動画がインターネットに送られることはありません。
    ============================================================ */
-const APP_VERSION = 'web-2026-10-21-F';
+const APP_VERSION = 'web-2026-10-22-A';
 let W = 1920, H = 1080;           // 動画の大きさ(横型 1920x1080 / 縦型 1080x1920)。applyOrientation()で切り替える
 const FPS = 30, XFADE = 0.6, FADE_IN = 0.8;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -2203,10 +2208,11 @@ const DEFAULT_SETTINGS = {
   writing: 'h',                      // 文字の向きの標準: h=横書き / v=縦書き
   mid_writing: ['', '', '', '', ''],   // 空=標準に従う / h / v
   ending_writing: ['', '', '', '', ''],
-  bgm_id: 'none',
+  bgm_id: 'auto',                    // auto = assets/bgm/list.json で default に指定した曲(無ければなし) / none / 曲のid
   bgm_volume: 0.5,
   duck_volume: 0.12,
-  font_id: 'auto', frame_id: 'auto', label_id: 'auto', bg_id: 'auto',
+  font_id: 'builtin:notosans', frame_id: 'builtin:frame:frame(8)', label_id: 'builtin:label:ラベルフレーム(1)', bg_id: 'builtin:bg:background(2)',
+  settings_version: 2,
   text_color: '#000000', sub_color: '#FFFFFF', label_color: '#000000',
   accent: '#E8B84A', frame_bg: '#1A1A1A',
 };
@@ -2222,7 +2228,14 @@ function loadSettings() {
   const s = deepCopy(DEFAULT_SETTINGS);
   try {
     const saved = JSON.parse(localStorage.getItem('hmm_settings_v1') || 'null');
-    if (saved && typeof saved === 'object') for (const k of Object.keys(s)) if (k in saved) s[k] = saved[k];
+    if (saved && typeof saved === 'object') {
+      for (const k of Object.keys(s)) if (k in saved) s[k] = saved[k];
+      if (saved.settings_version !== 2) {   // 古い設定: 「自動」→ 実際の素材名に置き換える。BGMは「なし」だったものを「自動」に
+        for (const k of ['font', 'frame', 'label', 'bg']) if (s[k + '_id'] === 'auto') s[k + '_id'] = DEFAULT_SETTINGS[k + '_id'];
+        if (s.bgm_id === 'none') s.bgm_id = 'auto';
+        s.settings_version = 2;
+      }
+    }
   } catch (e) { /* 壊れていたら既定値を使う */ }
   return s;
 }
@@ -2262,11 +2275,30 @@ function b64ToBlob(b64, type) {
   return new Blob([u8], { type });
 }
 let assets = [];  // {id, kind: font|frame|label|bg|bgm, name, blob, builtin}
-const BUILTIN_FONT = { id: 'builtin:notosans', kind: 'font', name: '標準（Noto Sans JP 太字）', builtin: true, family: 'NotoSansJP' };
+const BUILTIN_FONT = { id: 'builtin:notosans', kind: 'font', name: 'Noto Sans JP（太字）', builtin: true, family: 'NotoSansJP' };
 function initBuiltins() {
   assets = [BUILTIN_FONT];
   for (const f of (window.__FONT_PRESETS__ || [])) assets.push({ id: 'preset:' + f.stem, kind: 'font', name: f.label, builtin: true, preset: true, url: 'assets/fonts/' + f.stem + '.subset.woff2' });
   for (const b of (window.__BUILTIN_ASSETS__ || [])) assets.push({ id: 'builtin:' + b.kind + ':' + b.name, kind: b.kind, name: b.name, blob: b64ToBlob(b.b64, b.mime), builtin: true });
+}
+/* プリセットBGM: assets/bgm/list.json に曲を書いておくと、設定の一覧に出る(default:true の曲は最初から選ばれる)。
+   例) [{"file":"sample.mp3","name":"やさしいピアノ","default":true}]   ファイルは assets/bgm/ に置く */
+async function loadBgmPresets() {
+  try {
+    const res = await fetch('assets/bgm/list.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const list = await res.json();
+    for (const b of (Array.isArray(list) ? list : [])) {
+      if (!b || !b.file) continue;
+      assets.push({ id: 'preset:bgm:' + b.file, kind: 'bgm', name: b.name || b.file.replace(/\.[^.]+$/, ''), builtin: true, preset: true, isDefault: !!b.default, url: 'assets/bgm/' + b.file });
+    }
+  } catch (e) { /* 一覧が無い・読めない場合は、プリセットBGMなし */ }
+}
+async function assetArrayBuffer(a) {
+  if (a.blob) return await a.blob.arrayBuffer();
+  const res = await fetch(a.url);
+  if (!res.ok) throw new Error(`「${a.name}」のファイル（${a.url}）を読み込めませんでした。assets/bgm フォルダがアップロードされているか確認してください。`);
+  return await res.arrayBuffer();
 }
 async function loadUserAssets() {
   const rows = await idbAll();
@@ -2277,6 +2309,7 @@ function assetsOf(kind) { return assets.filter(a => a.kind === kind); }
 function resolveAsset(kind, choice) {
   if (choice === 'none') return null;
   const list = assetsOf(kind);
+  if (kind === 'bgm' && choice === 'auto') return list.find(a => a.isDefault) || null;
   if (choice === 'auto') {
     const hint = (HINTS[kind] || '').toLowerCase();
     const has = a => hint && a.name.toLowerCase().includes(hint);
@@ -2293,7 +2326,12 @@ async function ensureFont(asset) {
   if (fontCache.has(asset.id)) return fontCache.get(asset.id);
   const family = 'UF_' + asset.id.replace(/[^a-zA-Z0-9]/g, '');
   const face = asset.preset ? new FontFace(family, `url(${asset.url})`) : new FontFace(family, await asset.blob.arrayBuffer());
-  await face.load();
+  try { await face.load(); }
+  catch (e) {
+    throw new Error(asset.preset
+      ? `「${asset.name}」のフォントファイル（${asset.url}）を読み込めませんでした。公開しているフォルダに「assets」フォルダ（中の fonts フォルダごと）がアップロードされているか確認してください。`
+      : `「${asset.name}」を読み込めませんでした。`);
+  }
   document.fonts.add(face);
   fontCache.set(asset.id, family);
   return family;
@@ -2310,10 +2348,10 @@ async function getBitmap(asset) {
 async function makeRenderConfig(sel) {
   sel = sel || S;   // 設定画面でプレビューするときは、選んでいる途中の値を渡す
   const fontAsset = resolveAsset('font', sel.font_id);
-  let family;
-  try { family = await ensureFont(fontAsset); } catch (e) { family = await ensureFont(BUILTIN_FONT); }
+  let family, fontError = null;
+  try { family = await ensureFont(fontAsset); } catch (e) { fontError = e.message; family = await ensureFont(BUILTIN_FONT); }
   return {
-    fontFamily: family,
+    fontFamily: family, fontError,
     frameBmp: await getBitmap(resolveAsset('frame', sel.frame_id)).catch(() => null),
     labelBmp: await getBitmap(resolveAsset('label', sel.label_id)).catch(() => null),
     bgBmp: await getBitmap(resolveAsset('bg', sel.bg_id)).catch(() => null),
@@ -2649,7 +2687,7 @@ async function buildAudio(scenes, total, log) {
   }
   if (bgm) {
     try {
-      const buf = await off.decodeAudioData(await bgm.blob.arrayBuffer());
+      const buf = await off.decodeAudioData(await assetArrayBuffer(bgm));
       const src = off.createBufferSource(); src.buffer = buf; src.loop = true;
       const base = off.createGain(); base.gain.value = S.bgm_volume;
       const gDuck = off.createGain(), gFade = off.createGain();
@@ -2744,6 +2782,7 @@ async function generate() {
   try {
     log('=== 動画作成を開始します ===');
     const R = await makeRenderConfig();
+    if (R.fontError) log('[注意] ' + R.fontError + '標準フォントで作成します。');
     const built = await buildScenes(R, cats, names, dateText, n => log('動画を読み込み中: ' + n));
     scenes = built.scenes;
     if (!scenes.length) throw new Error('写真・動画・メッセージ画面が1つもありません。');
@@ -3144,6 +3183,7 @@ async function openPlayer() {
     applyOrientation(S.orientation);
     const cv = $('playCanvas'); cv.width = W; cv.height = H;
     const R = await makeRenderConfig();
+    if (R.fontError) log('[注意] ' + R.fontError + '標準フォントで再生します。');
     const built = await buildScenes(R, cats, names, dateText, n => { st.textContent = '動画を読み込み中: ' + n; });
     if (!PV.open) { built.scenes.forEach(x => { try { x.dispose(); } catch (e) { } }); return; }   // 準備中に閉じられた
     if (!built.scenes.length) throw new Error('表示する画面が1つもありません。お客様名・写真・メッセージなどを入力してください。');
@@ -3244,19 +3284,19 @@ function closePlayer() {
    設定画面
    ============================================================ */
 const KIND_INFO = {
-  font:  { title: 'フォント', ext: '.ttf,.otf,.woff,.woff2', autoLabel: '自動（標準：Noto Sans JP 太字／追加した Charifont があればそれ）' },
-  frame: { title: 'フレーム', ext: 'image/png,image/webp', autoLabel: '自動（標準：frame(8)）', noneLabel: 'フレームなし' },
-  label: { title: 'ラベル背景', ext: 'image/png,image/webp', autoLabel: '自動（標準：ラベルフレーム(1)）', noneLabel: 'ラベルフレームなし' },
-  bg:    { title: '背景画像', ext: 'image/*', autoLabel: '自動（標準：background(2)）', noneLabel: 'なし（単色の背景）' },
+  font:  { title: 'フォント', ext: '.ttf,.otf,.woff,.woff2' },
+  frame: { title: 'フレーム', ext: 'image/png,image/webp', noneLabel: 'フレームなし' },
+  label: { title: 'ラベル背景', ext: 'image/png,image/webp', noneLabel: 'ラベルフレームなし' },
+  bg:    { title: '背景画像', ext: 'image/*', noneLabel: 'なし（単色の背景）' },
   bgm:   { title: 'BGM', ext: 'audio/*', noneLabel: 'なし' },
 };
 
 function assetOptions(kind, current) {
   const info = KIND_INFO[kind]; let html = '';
-  if (info.autoLabel) html += `<option value="auto"${current === 'auto' ? ' selected' : ''}>${esc(info.autoLabel)}</option>`;
+  if (kind === 'bgm' && current === 'auto') { const d = resolveAsset('bgm', 'auto'); current = d ? d.id : 'none'; }   // 既定の曲があればそれを選んだ状態で表示
   if (info.noneLabel) html += `<option value="none"${current === 'none' ? ' selected' : ''}>${esc(info.noneLabel)}</option>`;
   if (kind === 'bg') html += `<option value="white"${current === 'white' ? ' selected' : ''}>白（単色の背景）</option>`;
-  for (const a of assetsOf(kind)) html += `<option value="${esc(a.id)}"${current === a.id ? ' selected' : ''}>${esc(a.name)}${a.builtin ? '' : ''}</option>`;
+  for (const a of assetsOf(kind)) html += `<option value="${esc(a.id)}"${current === a.id ? ' selected' : ''}>${esc(a.name)}</option>`;
   return html;
 }
 function numVal(id, fallback) { const v = parseFloat($(id).value); return v > 0 ? v : fallback; }
@@ -3277,16 +3317,23 @@ function openSettings() {
     for (let i = 0; i < n; i++) {
       const w = wr[i] || '';
       h += `<div class="lab">${prefix}${i + 1}</div>
-        <textarea id="${idp[0]}${i}" rows="3" placeholder="改行もできます">${esc(arr[i] || '')}</textarea>
-        <input type="number" id="${idp[1]}${i}" min="0.5" step="0.5" placeholder="秒" value="${durs[i] || ''}">
-        <select id="${idp[2]}${i}" class="wsel" title="文字の向き">
-          <option value=""${w === '' ? ' selected' : ''}>標準</option><option value="h"${w === 'h' ? ' selected' : ''}>横書き</option><option value="v"${w === 'v' ? ' selected' : ''}>縦書き</option></select>`;
+        <div class="rowbody">
+          <textarea id="${idp[0]}${i}" rows="3" placeholder="改行もできます">${esc(arr[i] || '')}</textarea>
+          <div class="rowopts">
+            <input type="number" id="${idp[1]}${i}" min="0.5" step="0.5" placeholder="秒数" title="表示秒数（空欄＝基本値）" value="${durs[i] || ''}">
+            <select id="${idp[2]}${i}" class="wsel" title="文字の向き">
+              <option value=""${w === '' ? ' selected' : ''}>標準</option><option value="h"${w === 'h' ? ' selected' : ''}>横書き</option><option value="v"${w === 'v' ? ' selected' : ''}>縦書き</option></select>
+          </div>
+        </div>`;
     }
     return h + '</div>';
   };
   $('settingsBody').innerHTML = `
   <fieldset><legend>会社情報</legend>
     <div class="fr"><label>会社名</label><input type="text" id="s_company" value="${esc(S.company_name)}"></div>
+  </fieldset>
+  <fieldset><legend>動画の向き</legend>
+    <div class="fr"><label>動画の向き</label><select id="s_orient"><option value="landscape"${S.orientation !== 'portrait' ? ' selected' : ''}>横型（パソコン・テレビ向け 1920×1080）</option><option value="portrait"${S.orientation === 'portrait' ? ' selected' : ''}>縦型（スマホ・SNS向け 1080×1920）</option></select></div>
   </fieldset>
   <fieldset><legend>文字の向き</legend>
     <div class="fr"><label>標準の文字の向き</label><select id="w_default"><option value="h"${S.writing === 'h' ? ' selected' : ''}>横書き</option><option value="v"${S.writing === 'v' ? ' selected' : ''}>縦書き</option></select></div>
@@ -3327,7 +3374,7 @@ function openSettings() {
   $('settingsBack').style.display = 'flex';
   $('settingsBody').querySelectorAll('[data-add]').forEach(b => b.onclick = () => addAsset(b.dataset.add));
   $('settingsBody').querySelectorAll('[data-del]').forEach(b => b.onclick = () => delAsset(b.dataset.del));
-  for (const id of ['as_font', 'as_frame', 'as_label', 'as_bg', 'c_text', 'c_label', 'w_default']) $(id).addEventListener('change', refreshDesignPreview);
+  for (const id of ['as_font', 'as_frame', 'as_label', 'as_bg', 'c_text', 'c_label', 'w_default', 's_orient']) $(id).addEventListener('change', refreshDesignPreview);
   for (const id of ['c_text', 'c_label']) $(id).addEventListener('input', refreshDesignPreview);
   for (const id of ['pv_title', 'pv_photo']) { $(id).title = 'クリックで拡大'; $(id).onclick = () => zoomPreview(id); }
   refreshDesignPreview();
@@ -3356,11 +3403,12 @@ function samplePhoto() {
 }
 async function refreshDesignPreview() {
   const seq = ++pvSeq, note = $('pv_note'); if (!note) return;
-  note.textContent = '読み込み中…';
+  note.style.color = ''; note.textContent = '読み込み中…';
   try {
     const sel = { font_id: $('as_font').value, frame_id: $('as_frame').value, label_id: $('as_label').value, bg_id: $('as_bg').value,
       text_color: $('c_text').value, label_color: $('c_label').value };
-    applyOrientation(S.orientation);
+    const ori = $('s_orient').value;
+    applyOrientation(ori);
     const vert = $('w_default').value === 'v';
     const R = await makeRenderConfig(sel);
     if (seq !== pvSeq) return;
@@ -3368,12 +3416,12 @@ async function refreshDesignPreview() {
     lastPv = {};
     const ph = samplePhoto(), p = newCanvas();
     drawMedia(p.getContext('2d'), R, ph, ph.width, ph.height, { showFrame: true, label: '地鎮祭', vertical: vert });
-    const pw = S.orientation === 'portrait' ? 130 : 384, phh = S.orientation === 'portrait' ? 231 : 216;   // 小さいサイズで描く
+    const pw = ori === 'portrait' ? 130 : 384, phh = ori === 'portrait' ? 231 : 216;   // 小さいサイズで描く
     lastPv = { pv_title: t, pv_photo: p };
     for (const [id, src] of [['pv_title', t], ['pv_photo', p]]) {
       const cv = $(id); cv.width = pw; cv.height = phh; const cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.drawImage(src, 0, 0, pw, phh);
     }
-    note.textContent = '';
+    note.style.color = R.fontError ? '#ff9a8f' : ''; note.textContent = R.fontError ? '⚠ ' + R.fontError + '（標準フォントで表示しています）' : '';
   } catch (e) { if (seq === pvSeq) note.textContent = 'プレビューできませんでした：' + e.message; }
 }
 
@@ -3401,7 +3449,7 @@ async function delAsset(kind) {
   if (!a || a.builtin) { alert('削除できるのは、追加した素材だけです。'); return; }
   if (!confirm(`「${a.name}」を削除しますか？`)) return;
   await idbDel(id); assets = assets.filter(x => x.id !== id); bmpCache.delete(id); fontCache.delete(id);
-  sel.innerHTML = assetOptions(kind, KIND_INFO[kind].autoLabel ? 'auto' : 'none');
+  sel.innerHTML = assetOptions(kind, kind === 'bgm' ? 'none' : DEFAULT_SETTINGS[kind + '_id']);
   if (kind !== 'bgm') refreshDesignPreview();
 }
 
@@ -3413,6 +3461,7 @@ function readSettingsForm() {
     n.ending_messages.push($('em' + i).value.replace(/\r/g, '').trim()); n.ending_durations.push(optNum('ed' + i));
     n.mid_messages.push($('mm' + i).value.replace(/\r/g, '').trim()); n.mid_durations.push(optNum('md' + i));
   }
+  n.orientation = $('s_orient').value;
   n.writing = $('w_default').value;
   n.mid_writing = []; n.ending_writing = [];
   for (let i = 0; i < 5; i++) { n.mid_writing.push($('mw' + i).value); n.ending_writing.push($('ew' + i).value); }
@@ -3430,6 +3479,8 @@ function readSettingsForm() {
 /* ============================================================
    起動
    ============================================================ */
+function updateOriInfo() { const el = $('oriInfo'); if (el) el.textContent = '動画の向き：' + (S.orientation === 'portrait' ? '縦型' : '横型') + '（設定で変更）'; }
+
 function wireUp() {
   $('ver').textContent = 'build ' + APP_VERSION;
   $('dateInput').value = dateText;
@@ -3437,19 +3488,15 @@ function wireUp() {
   $('btnSettings').onclick = openSettings;
   $('btnReset').onclick = resetWork;
   $('setClose').onclick = $('setCancel').onclick = () => { $('settingsBack').style.display = 'none'; };
-  $('setSave').onclick = () => { Object.assign(S, readSettingsForm()); saveSettings(); $('settingsBack').style.display = 'none'; renderCats(); };
+  $('setSave').onclick = () => { Object.assign(S, readSettingsForm()); saveSettings(); applyOrientation(S.orientation); updateOriInfo(); $('settingsBack').style.display = 'none'; renderCats(); };
   $('setReset').onclick = () => {
     if (!confirm('会社名・メッセージ・文字色など、すべての設定を初期状態に戻します。よろしいですか？\n（追加した素材は残ります）')) return;
-    S = deepCopy(DEFAULT_SETTINGS); saveSettings(); openSettings(); renderCats();
+    S = deepCopy(DEFAULT_SETTINGS); saveSettings(); applyOrientation(S.orientation); updateOriInfo(); openSettings(); renderCats();
   };
   $('zoomBack').onclick = () => { $('zoomBack').style.display = 'none'; };
   document.addEventListener('keydown', e => { if (e.key === 'Escape') $('zoomBack').style.display = 'none'; });
   $('previewClose').onclick = () => { $('previewBack').style.display = 'none'; };
-  document.querySelectorAll('input[name=ori]').forEach(r => {
-    r.checked = r.value === S.orientation;
-    r.onchange = () => { if (r.checked) { S.orientation = r.value; saveSettings(); applyOrientation(S.orientation); } };
-  });
-  applyOrientation(S.orientation);
+  applyOrientation(S.orientation); updateOriInfo();
   $('btnGenerate').onclick = generate;
   $('btnPlay').onclick = openPlayer;
   $('playClose').onclick = closePlayer;
@@ -3472,6 +3519,7 @@ function wireUp() {
 
 async function main() {
   initBuiltins();
+  await loadBgmPresets();
   await loadUserAssets();
   cats = defaultCats();
   wireUp(); renderNames(); renderCats();
