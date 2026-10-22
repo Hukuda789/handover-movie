@@ -27,9 +27,9 @@ button.small{padding:3px 8px;font-size:12px}
 input[type=text],input[type=number],select,textarea{background:#1a1c1f;border:1px solid var(--line);border-radius:5px;padding:5px 8px;width:100%}
 textarea{resize:vertical}
 label{color:var(--muted);font-size:12px}
-#app{display:flex;flex-direction:column;height:100vh;min-width:900px}
-header{display:flex;align-items:center;gap:12px;padding:8px 14px;background:#17181a;border-bottom:1px solid var(--line)}
-header h1{font-size:15px;margin:0;flex:1}
+#app{display:flex;flex-direction:column;height:100vh;min-width:520px}
+header{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:8px 14px;background:#17181a;border-bottom:1px solid var(--line)}
+header h1{font-size:15px;margin:0;flex:1 1 auto;white-space:nowrap}
 header .ver{color:var(--muted);font-size:11px}
 #banner{display:none;background:#7a3b1d;color:#fff;padding:8px 14px;font-size:13px}
 #top{display:flex;gap:14px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--line)}
@@ -82,7 +82,7 @@ legend{color:var(--accent);padding:0 6px;font-size:12px}
 .cat .kebab{background:transparent;border:none;color:inherit;padding:0 6px;font-size:16px;line-height:1;opacity:.75;border-radius:4px}
 .cat .kebab:hover{background:rgba(255,255,255,.18);opacity:1}
 .cat>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#ctxMenu{position:fixed;display:none;z-index:80;background:#2f3338;border:1px solid var(--line);border-radius:8px;min-width:170px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#ctxMenu{position:fixed;display:none;z-index:110;background:#2f3338;border:1px solid var(--line);border-radius:8px;min-width:170px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 #ctxMenu button{display:block;width:100%;text-align:left;background:transparent;border:none;border-radius:5px;padding:7px 10px}
 #ctxMenu button:hover{background:#41464c}
 #ctxMenu button.danger{color:#ff8a85}
@@ -160,14 +160,37 @@ details.adv>.advbody{padding:0 12px 4px}
 @media (max-width:820px){ #playBar{flex-wrap:wrap} #playBar input[type=range]{flex:1 1 100%;order:3} }
 
 /* 設定: 画面の右側に出るパネル(後ろのメイン画面を見ながら操作できる) */
-#settingsBack{background:transparent;pointer-events:none;justify-content:flex-end;align-items:stretch}
-#settingsBack .modal{pointer-events:auto;width:min(560px,100vw);height:100vh;max-height:100vh;border-radius:0;border:0;border-left:1px solid var(--line);box-shadow:-12px 0 36px rgba(0,0,0,.5);animation:slideIn .18s ease-out}
+#settingsBack{inset:0 0 0 auto;width:var(--panel-w);background:transparent;align-items:stretch;justify-content:stretch}
+#settingsBack .modal{position:relative;width:100%;height:100vh;max-height:100vh;border-radius:0;border:0;border-left:1px solid var(--line);box-shadow:-12px 0 36px rgba(0,0,0,.5);animation:slideIn .18s ease-out}
 @keyframes slideIn{from{transform:translateX(36px);opacity:0}to{transform:none;opacity:1}}
 .rowbody textarea{width:100%}
 .rowopts{display:flex;gap:8px;margin-top:6px}
 .rowopts input{width:104px;flex:none}
 .rowopts select{flex:1;max-width:150px}
 #oriInfo{margin-left:4px}
+
+:root{--panel-w:680px}
+body.settings-open #app{margin-right:var(--panel-w)}
+body:not(.resizing) #app{transition:margin-right .15s}
+body.resizing{user-select:none;cursor:col-resize}
+.splitter{position:absolute;left:-6px;top:0;bottom:0;width:12px;cursor:col-resize;z-index:5}
+.splitter::after{content:'';position:absolute;left:5px;top:0;bottom:0;width:2px;background:transparent;transition:background .15s}
+.splitter:hover::after,body.resizing .splitter::after{background:var(--accent)}
+#settingsBack .mf{align-items:center}
+/* 素材のプルダウン(選択中の項目に色を付け、追加した素材は右クリックで削除できる) */
+.dd{flex:1;min-width:0;position:relative}
+.dd-btn{width:100%;text-align:left;background:#1a1c1f;border:1px solid var(--line);border-radius:5px;padding:6px 28px 6px 10px;position:relative;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-btn::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+#ddList{position:fixed;display:none;z-index:100;overflow:auto;background:#2b2f34;border:1px solid var(--line);border-radius:8px;padding:4px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.dd-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;cursor:pointer}
+.dd-item:hover{background:#3d434a}
+.dd-item.sel{background:var(--accent-d);color:#fff;font-weight:700}
+.dd-item.sel:hover{background:var(--accent)}
+.dd-item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-tag{font-size:10px;border:1px solid var(--line);border-radius:4px;padding:0 5px;color:var(--muted);flex:none}
+.dd-item.sel .dd-tag{color:#fff;border-color:rgba(255,255,255,.65)}
+.dd-check{flex:none}
+@media (max-width:820px){ #settingsBack{width:100vw} body.settings-open #app{margin-right:0} .splitter{display:none} }
 </style>
 </head>
 <body>
@@ -219,14 +242,16 @@ details.adv>.advbody{padding:0 12px 4px}
   </div>
 </div>
 
-<!-- 設定 -->
+<!-- 設定（画面の右側のパネル。境目をドラッグして幅を変えられる。変更はすぐに反映・保存される） -->
 <div class="modal-back" id="settingsBack">
   <div class="modal">
-    <header><h1>設定</h1><button class="small" id="setClose">✕</button></header>
+    <div class="splitter" id="panelSplitter" title="ドラッグして幅を変えられます"></div>
+    <header><h1>設定</h1><button class="small" id="setClose" title="閉じる">✕</button></header>
     <div class="mb" id="settingsBody"></div>
     <div class="mf">
       <button id="setReset">設定をリセット</button>
-      <span><button id="setCancel">キャンセル</button> <button class="primary" id="setSave">保存</button></span>
+      <span class="hint">変更は、すぐに反映・保存されます</span>
+      <button class="primary" id="setDone">閉じる</button>
     </div>
   </div>
 </div>
@@ -255,6 +280,7 @@ details.adv>.advbody{padding:0 12px 4px}
   </div>
 </div>
 <div id="zoomBack" title="クリックで元に戻ります"><canvas id="zoomCanvas"></canvas></div>
+<div id="ddList"></div>
 <div id="ctxMenu"></div>
 <input type="file" id="fileAdd" multiple accept="image/*,video/*" style="display:none">
 <input type="file" id="fileAsset" style="display:none">
@@ -2176,7 +2202,7 @@ window.__FONT_PRESETS__=[{"stem": "ZenMaruGothic-Bold", "label": "Zen Maru Gothi
    すべての処理（描画・音声・MP4の書き出し）はこのページを開いている
    パソコンの中だけで行われ、写真や動画がインターネットに送られることはありません。
    ============================================================ */
-const APP_VERSION = 'web-2026-10-22-A';
+const APP_VERSION = 'web-2026-10-22-B';
 let W = 1920, H = 1080;           // 動画の大きさ(横型 1920x1080 / 縦型 1080x1920)。applyOrientation()で切り替える
 const FPS = 30, XFADE = 0.6, FADE_IN = 0.8;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -2355,7 +2381,7 @@ async function makeRenderConfig(sel) {
     frameBmp: await getBitmap(resolveAsset('frame', sel.frame_id)).catch(() => null),
     labelBmp: await getBitmap(resolveAsset('label', sel.label_id)).catch(() => null),
     bgBmp: await getBitmap(resolveAsset('bg', sel.bg_id)).catch(() => null),
-    bgSolid: sel.bg_id === 'white' ? '#ffffff' : null,   // 「白（単色の背景）」
+    bgSolid: sel.bg_id === 'white' ? '#ffffff' : (sel.bg_id === 'none' ? '#000000' : null),   // 「白」「黒」(単色の背景)
     textColor: sel.text_color, subColor: sel.text_color, labelColor: sel.label_color,   // 会社名はメッセージと同じ文字色
     accent: S.accent, frameBg: S.frame_bg,
   };
@@ -3287,7 +3313,7 @@ const KIND_INFO = {
   font:  { title: 'フォント', ext: '.ttf,.otf,.woff,.woff2' },
   frame: { title: 'フレーム', ext: 'image/png,image/webp', noneLabel: 'フレームなし' },
   label: { title: 'ラベル背景', ext: 'image/png,image/webp', noneLabel: 'ラベルフレームなし' },
-  bg:    { title: '背景画像', ext: 'image/*', noneLabel: 'なし（単色の背景）' },
+  bg:    { title: '背景画像', ext: 'image/*', noneLabel: '黒（単色の背景）' },
   bgm:   { title: 'BGM', ext: 'audio/*', noneLabel: 'なし' },
 };
 
@@ -3296,7 +3322,7 @@ function assetOptions(kind, current) {
   if (kind === 'bgm' && current === 'auto') { const d = resolveAsset('bgm', 'auto'); current = d ? d.id : 'none'; }   // 既定の曲があればそれを選んだ状態で表示
   if (info.noneLabel) html += `<option value="none"${current === 'none' ? ' selected' : ''}>${esc(info.noneLabel)}</option>`;
   if (kind === 'bg') html += `<option value="white"${current === 'white' ? ' selected' : ''}>白（単色の背景）</option>`;
-  for (const a of assetsOf(kind)) html += `<option value="${esc(a.id)}"${current === a.id ? ' selected' : ''}>${esc(a.name)}</option>`;
+  for (const a of assetsOf(kind)) html += `<option value="${esc(a.id)}"${current === a.id ? ' selected' : ''}${a.builtin ? '' : ' data-user="1"'}>${esc(a.name)}</option>`;
   return html;
 }
 function numVal(id, fallback) { const v = parseFloat($(id).value); return v > 0 ? v : fallback; }
@@ -3306,8 +3332,7 @@ function assetRow(kind) {
   const info = KIND_INFO[kind];
   return `<div class="fr"><label>${esc(info.title)}</label>
     <select id="as_${kind}">${assetOptions(kind, kind === 'bgm' ? S.bgm_id : S[kind + '_id'])}</select>
-    <button class="small" data-add="${kind}">追加...</button>
-    <button class="small" data-del="${kind}" title="追加した素材だけ削除できます">追加分を削除</button></div>`;
+    <button class="small" data-add="${kind}">追加...</button></div>`;
 }
 
 function openSettings() {
@@ -3371,9 +3396,9 @@ function openSettings() {
       </fieldset>
     </div>
   </details>`;
-  $('settingsBack').style.display = 'flex';
+  $('settingsBack').style.display = 'flex'; document.body.classList.add('settings-open');
   $('settingsBody').querySelectorAll('[data-add]').forEach(b => b.onclick = () => addAsset(b.dataset.add));
-  $('settingsBody').querySelectorAll('[data-del]').forEach(b => b.onclick = () => delAsset(b.dataset.del));
+  for (const k of ['font', 'frame', 'label', 'bg', 'bgm']) enhanceSelect($('as_' + k), k);
   for (const id of ['as_font', 'as_frame', 'as_label', 'as_bg', 'c_text', 'c_label', 'w_default', 's_orient']) $(id).addEventListener('change', refreshDesignPreview);
   for (const id of ['c_text', 'c_label']) $(id).addEventListener('input', refreshDesignPreview);
   for (const id of ['pv_title', 'pv_photo']) { $(id).title = 'クリックで拡大'; $(id).onclick = () => zoomPreview(id); }
@@ -3439,18 +3464,84 @@ function addAsset(kind) {
       assets.push(rec); last = rec;
     }
     e.target.value = '';
-    if (last) { const sel = $('as_' + kind); sel.innerHTML = assetOptions(kind, last.id); sel.value = last.id; if (kind !== 'bgm') refreshDesignPreview(); }
+    if (last) { const sel = $('as_' + kind); sel.innerHTML = assetOptions(kind, last.id); sel.value = last.id; sel.dispatchEvent(new Event('change', { bubbles: true })); }
   };
   inp.click();
 }
-async function delAsset(kind) {
-  const sel = $('as_' + kind); const id = sel.value;
+/* 追加した素材を削除する(プルダウンの項目を右クリックして呼ぶ)。標準の素材は削除できない */
+async function deleteAsset(kind, id) {
   const a = assets.find(x => x.id === id);
-  if (!a || a.builtin) { alert('削除できるのは、追加した素材だけです。'); return; }
+  if (!a || a.builtin) return;
   if (!confirm(`「${a.name}」を削除しますか？`)) return;
   await idbDel(id); assets = assets.filter(x => x.id !== id); bmpCache.delete(id); fontCache.delete(id);
-  sel.innerHTML = assetOptions(kind, kind === 'bgm' ? 'none' : DEFAULT_SETTINGS[kind + '_id']);
-  if (kind !== 'bgm') refreshDesignPreview();
+  const sel = $('as_' + kind);
+  if (sel) {
+    const wasSelected = sel.value === id;
+    sel.innerHTML = assetOptions(kind, wasSelected ? (kind === 'bgm' ? 'none' : DEFAULT_SETTINGS[kind + '_id']) : sel.value);
+    sel.dispatchEvent(new Event('change', { bubbles: true }));   // 表示・プレビュー・保存を更新
+  }
+}
+
+/* ---------- プルダウン: 選択中の項目に色を付ける／追加した素材は右クリックで削除 ---------- */
+function closeDd() { const l = $('ddList'); if (l) l.style.display = 'none'; }
+function openDd(sel, btn, kind) {
+  const list = $('ddList'); list.innerHTML = '';
+  for (const o of Array.from(sel.options)) {
+    const it = document.createElement('div'); it.className = 'dd-item' + (o.value === sel.value ? ' sel' : '');
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = o.text; it.appendChild(nm);
+    if (o.dataset.user) { const tg = document.createElement('span'); tg.className = 'dd-tag'; tg.textContent = '追加'; it.appendChild(tg); it.title = '右クリックで削除できます'; }
+    if (o.value === sel.value) { const ck = document.createElement('span'); ck.className = 'dd-check'; ck.textContent = '✓'; it.appendChild(ck); }
+    it.onclick = e => { e.stopPropagation(); closeDd(); if (sel.value !== o.value) { sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); } };
+    it.oncontextmenu = e => {
+      if (!o.dataset.user) return;      // 標準の素材は削除できないので、メニューを出さない
+      e.preventDefault(); e.stopPropagation();
+      openMenu(e.clientX, e.clientY, [{ label: '🗑 削除', danger: true, run: () => { closeDd(); deleteAsset(kind, o.value); } }]);
+    };
+    list.appendChild(it);
+  }
+  const r = btn.getBoundingClientRect(), maxH = Math.min(380, innerHeight * 0.6);
+  list.style.display = 'block'; list.style.width = r.width + 'px'; list.style.left = r.left + 'px'; list.style.maxHeight = maxH + 'px';
+  const h = Math.min(list.scrollHeight, maxH); let top = r.bottom + 4; if (top + h > innerHeight - 8) top = Math.max(8, r.top - 4 - h);
+  list.style.top = top + 'px';
+  const cur = list.querySelector('.sel'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+function enhanceSelect(sel, kind) {
+  const wrap = document.createElement('div'); wrap.className = 'dd';
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'dd-btn';
+  sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(btn); wrap.appendChild(sel); sel.style.display = 'none';
+  const sync = () => { btn.textContent = sel.selectedOptions[0] ? sel.selectedOptions[0].text : ''; };
+  sync(); sel.addEventListener('change', sync);
+  btn.onclick = e => { e.stopPropagation(); const l = $('ddList'); if (l.style.display === 'block') closeDd(); else openDd(sel, btn, kind); };
+}
+
+/* ---------- 設定の即時反映: 変更するたびに反映・保存する(「保存」を押す必要はない) ---------- */
+let applyTimer = null;
+function applySettingsNow() {
+  if (!$('s_company')) return;
+  Object.assign(S, readSettingsForm()); saveSettings();
+  applyOrientation(S.orientation); updateOriInfo(); renderCats();
+}
+function scheduleApply() { clearTimeout(applyTimer); applyTimer = setTimeout(applySettingsNow, 250); }
+function closeSettings() { clearTimeout(applyTimer); if ($('s_company')) applySettingsNow(); closeDd(); $('settingsBack').style.display = 'none'; document.body.classList.remove('settings-open'); }
+
+/* ---------- 設定パネルの幅(境目をドラッグして変える) ---------- */
+function initPanelWidth() {
+  let w = parseInt(localStorage.getItem('hmm_panel_w') || '', 10);
+  if (!(w >= 360)) w = Math.round(Math.min(720, Math.max(460, innerWidth * 0.48)));
+  document.documentElement.style.setProperty('--panel-w', Math.min(w, Math.round(innerWidth * 0.85)) + 'px');
+  const sp = $('panelSplitter'); if (!sp) return;
+  sp.addEventListener('pointerdown', e => { sp.setPointerCapture(e.pointerId); document.body.classList.add('resizing'); e.preventDefault(); });
+  sp.addEventListener('pointermove', e => {
+    if (!sp.hasPointerCapture(e.pointerId)) return;
+    const nw = Math.round(Math.min(innerWidth * 0.85, Math.max(360, innerWidth - e.clientX)));
+    document.documentElement.style.setProperty('--panel-w', nw + 'px');
+  });
+  const end = e => {
+    if (!document.body.classList.contains('resizing')) return;
+    document.body.classList.remove('resizing');
+    try { localStorage.setItem('hmm_panel_w', String(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--panel-w'), 10))); } catch (_) { }
+  };
+  sp.addEventListener('pointerup', end); sp.addEventListener('pointercancel', end);
 }
 
 function readSettingsForm() {
@@ -3485,16 +3576,19 @@ function wireUp() {
   $('ver').textContent = 'build ' + APP_VERSION;
   $('dateInput').value = dateText;
   $('dateInput').oninput = e => { dateText = e.target.value; renderCats(true); };
-  $('btnSettings').onclick = openSettings;
+  $('btnSettings').onclick = () => { if (document.body.classList.contains('settings-open')) closeSettings(); else openSettings(); };
+  initPanelWidth();
+  $('settingsBody').addEventListener('input', scheduleApply);
+  $('settingsBody').addEventListener('change', scheduleApply);
+  document.addEventListener('click', closeDd);
   $('btnReset').onclick = resetWork;
-  $('setClose').onclick = $('setCancel').onclick = () => { $('settingsBack').style.display = 'none'; };
-  $('setSave').onclick = () => { Object.assign(S, readSettingsForm()); saveSettings(); applyOrientation(S.orientation); updateOriInfo(); $('settingsBack').style.display = 'none'; renderCats(); };
+  $('setClose').onclick = $('setDone').onclick = closeSettings;
   $('setReset').onclick = () => {
     if (!confirm('会社名・メッセージ・文字色など、すべての設定を初期状態に戻します。よろしいですか？\n（追加した素材は残ります）')) return;
     S = deepCopy(DEFAULT_SETTINGS); saveSettings(); applyOrientation(S.orientation); updateOriInfo(); openSettings(); renderCats();
   };
   $('zoomBack').onclick = () => { $('zoomBack').style.display = 'none'; };
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('zoomBack').style.display = 'none'; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('zoomBack').style.display = 'none'; closeDd(); } });
   $('previewClose').onclick = () => { $('previewBack').style.display = 'none'; };
   applyOrientation(S.orientation); updateOriInfo();
   $('btnGenerate').onclick = generate;
